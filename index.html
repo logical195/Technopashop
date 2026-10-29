@@ -239,7 +239,7 @@ select{width:100%;padding:10px 12px;border:1px solid #a6a6a6;border-radius:8px;b
     <h2 class="sec-title">پشتیبانی آنلاین</h2>
     <div class="chat-wrap">
       <div class="chat-head"><span>گفتگو با پشتیبانی</span><small id="chat-user"></small></div>
-      <div class="hint">نسخه نمایشی: پیام‌ها فقط در همین مرورگر ذخیره می‌شوند. اتصال به چت آنلاین واقعی بعداً اضافه می‌شود.</div>
+      <div class="hint">برای استفاده از پشتیبانی آنلاین، با ایمیل و رمز عبور وارد شوید یا ثبت‌نام کنید.</div>
 
       <!-- ورود / ثبت نام مشتری -->
       <div id="auth" class="auth">
@@ -247,7 +247,7 @@ select{width:100%;padding:10px 12px;border:1px solid #a6a6a6;border-radius:8px;b
           <button id="tab-login" class="on" onclick="authTab('login')">ورود</button>
           <button id="tab-reg" onclick="authTab('reg')">ثبت‌نام</button>
         </div>
-        <div class="field"><label for="a-user">نام کاربری</label><input type="text" id="a-user" autocomplete="username"></div>
+        <div class="field"><label for="a-user">ایمیل</label><input type="email" id="a-user" autocomplete="email"></div>
         <div class="field"><label for="a-pass">رمز عبور</label><input type="password" id="a-pass" autocomplete="current-password"></div>
         <button class="btn" id="a-go" onclick="customerAuth()">ورود</button>
         <div class="msg" id="a-msg"></div>
@@ -282,7 +282,7 @@ select{width:100%;padding:10px 12px;border:1px solid #a6a6a6;border-radius:8px;b
 <div id="admin-modal" class="modal hidden">
   <div class="dialog">
     <h2>ورود مدیر</h2>
-    <div class="field"><label for="m-user">نام کاربری</label><input type="text" id="m-user" autocomplete="off"></div>
+    <div class="field"><label for="m-user">ایمیل مدیر</label><input type="email" id="m-user" autocomplete="email"></div>
     <div class="field"><label for="m-pass">رمز عبور</label><input type="password" id="m-pass" autocomplete="off" onkeydown="if(event.key==='Enter')adminLogin()"></div>
     <div class="msg err" id="m-msg"></div>
     <div class="acts">
@@ -292,10 +292,12 @@ select{width:100%;padding:10px 12px;border:1px solid #a6a6a6;border-radius:8px;b
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-/* ===== تنظیمات ===== */
-const ADMIN_USER = 'logic';
-const ADMIN_PASS = '*****';
+/* ===== تنظیمات Supabase ===== */
+const SUPABASE_URL = 'https://vlcctdwkwlelcmcydiqv.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_g1Ez8AgK4RR7q9jCpz_eEw_sIkY0-9n';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 // لینک‌ها را بعداً اینجا بگذارید:
 const LINKS = { instagram: 'https://www.instagram.com/technopashop?dlrf=OW9mdDFwYjQyYmpr', rubika: 'https://rubika.ir/Technopashop' };
 
@@ -304,8 +306,8 @@ const store = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ return false; } }
 };
-let session = store.get('session', null);   // {name, role}
-let activeChat = null; let q = ''; let cat = '';
+let session = null; // session authenticated by Supabase
+let activeChat = null; let activeConversationId = null; let realtimeChannel = null; let q = ''; let cat = '';
 const CATS = ['لپ‌تاپ','پردازنده (CPU)','کارت گرافیک','مادربورد','رم (RAM)','هارد و SSD','پاور و کیس','مانیتور','لوازم جانبی','لوازم استوک'];                       // برای مدیر: نام مشتری انتخاب‌شده
 
 document.getElementById('link-insta').href = LINKS.instagram;
@@ -330,8 +332,9 @@ function refreshHeader(){
   renderProducts();
 }
 
-function logout(){
-  session = null; store.set('session', null); activeChat = null;
+async function logout(){
+  await supabaseClient.auth.signOut(); session = null; activeChat = null; activeConversationId = null;
+  if(realtimeChannel) { await supabaseClient.removeChannel(realtimeChannel); realtimeChannel = null; }
   refreshHeader(); renderChat();
 }
 
@@ -344,16 +347,16 @@ function openAdminLogin(){
   document.getElementById('m-user').focus();
 }
 function closeAdminLogin(){ document.getElementById('admin-modal').classList.add('hidden'); }
-function adminLogin(){
-  const u = document.getElementById('m-user').value.trim();
-  const p = document.getElementById('m-pass').value;
-  if(u === ADMIN_USER && p === ADMIN_PASS){
-    session = { name: 'مدیر', role: 'admin' };
-    store.set('session', session);
-    closeAdminLogin(); refreshHeader(); renderChat();
-  } else {
-    document.getElementById('m-msg').textContent = 'نام کاربری یا رمز عبور درست نیست.';
-  }
+async function adminLogin(){
+  const msg = document.getElementById('m-msg');
+  msg.textContent = 'در حال ورود…';
+  const email = document.getElementById('m-user').value.trim();
+  const password = document.getElementById('m-pass').value;
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if(error){ msg.textContent = 'ورود ناموفق بود؛ ایمیل و رمز را بررسی کنید.'; return; }
+  const { data: admin, error: adminError } = await supabaseClient.from('support_admins').select('user_id').eq('user_id', data.user.id).maybeSingle();
+  if(adminError || !admin){ await supabaseClient.auth.signOut(); msg.textContent = 'این حساب دسترسی مدیر ندارد.'; return; }
+  await loadCurrentSession(data.user); closeAdminLogin(); refreshHeader(); await renderChat();
 }
 
 /* ===== محصولات ===== */
@@ -430,7 +433,7 @@ function addProduct(){
   renderProducts();
 }
 
-/* ===== ورود / ثبت‌نام مشتری ===== */
+/* ===== ورود / ثبت‌نام و چت آنلاین با Supabase ===== */
 let authMode = 'login';
 function authTab(m){
   authMode = m;
@@ -439,36 +442,31 @@ function authTab(m){
   document.getElementById('a-go').textContent = m === 'login' ? 'ورود' : 'ثبت‌نام';
   document.getElementById('a-msg').textContent = '';
 }
-const norm = s => s.trim().toLowerCase();
 
-function customerAuth(){
-  const msg = document.getElementById('a-msg'); msg.className = 'msg err';
-  const name = document.getElementById('a-user').value.trim();
-  const pass = document.getElementById('a-pass').value;
-  if(name.length < 3){ msg.textContent = 'نام کاربری باید حداقل ۳ حرف باشد.'; return; }
-  if(pass.length < 4){ msg.textContent = 'رمز عبور باید حداقل ۴ کاراکتر باشد.'; return; }
-  const users = store.get('users', {});
-  const key = norm(name);
-
-  if(authMode === 'reg'){
-    if(key === ADMIN_USER || key === 'مدیر' || key === 'admin' || users[key]){
-      msg.textContent = 'این نام کاربری قبلاً گرفته شده. نام دیگری انتخاب کنید.'; return;
-    }
-    users[key] = { name, pass };
-    store.set('users', users);
-  } else {
-    if(!users[key] || users[key].pass !== pass){ msg.textContent = 'نام کاربری یا رمز عبور درست نیست.'; return; }
-  }
-  session = { name: users[key].name, role: 'user', key };
-  store.set('session', session);
-  document.getElementById('a-user').value = ''; document.getElementById('a-pass').value = ''; msg.textContent = '';
-  refreshHeader(); renderChat();
+async function loadCurrentSession(user){
+  if(!user){ session = null; return; }
+  const { data: admin } = await supabaseClient.from('support_admins').select('user_id').eq('user_id', user.id).maybeSingle();
+  session = { id: user.id, email: user.email, name: user.user_metadata?.name || user.email, role: admin ? 'admin' : 'user' };
 }
 
-/* ===== چت ===== */
-const getChats = () => store.get('chats', {});   // { کلید مشتری: [ {from, text} ] }
+async function customerAuth(){
+  const msg = document.getElementById('a-msg'); msg.className = 'msg err';
+  const email = document.getElementById('a-user').value.trim();
+  const password = document.getElementById('a-pass').value;
+  if(!/^\S+@\S+\.\S+$/.test(email)){ msg.textContent = 'ایمیل معتبر وارد کنید.'; return; }
+  if(password.length < 6){ msg.textContent = 'رمز عبور باید حداقل ۶ کاراکتر باشد.'; return; }
+  msg.textContent = 'در حال اتصال…';
+  let result;
+  if(authMode === 'reg') result = await supabaseClient.auth.signUp({ email, password, options: { data: { name: email.split('@')[0] } } });
+  else result = await supabaseClient.auth.signInWithPassword({ email, password });
+  if(result.error){ msg.textContent = result.error.message.includes('Invalid login') ? 'ایمیل یا رمز عبور اشتباه است.' : 'خطا: ' + result.error.message; return; }
+  if(authMode === 'reg' && !result.data.session){ msg.className = 'msg ok'; msg.textContent = 'ثبت‌نام انجام شد. ایمیل را برای تأیید حساب بررسی کنید؛ اگر ایمیل تأیید فعال است.'; return; }
+  await loadCurrentSession(result.data.user);
+  document.getElementById('a-user').value = ''; document.getElementById('a-pass').value = ''; msg.textContent = '';
+  refreshHeader(); await renderChat();
+}
 
-function renderChat(){
+async function renderChat(){
   const auth = document.getElementById('auth');
   const body = document.getElementById('chat-body');
   const users = document.getElementById('users');
@@ -477,64 +475,71 @@ function renderChat(){
   body.classList.toggle('hidden', !session);
   document.getElementById('chat-user').textContent = session ? (isAdmin ? 'مدیر' : session.name) : '';
   if(!session) return;
-
   users.classList.toggle('hidden', !isAdmin);
   body.classList.toggle('single', !isAdmin);
-
   if(isAdmin){
-    const chats = getChats(); const keys = Object.keys(chats);
+    const { data, error } = await supabaseClient.from('support_conversations').select('id, customer_id, subject, status, created_at').order('created_at', { ascending: false });
     users.innerHTML = '';
-    if(!keys.length){ const n = document.createElement('div'); n.className = 'none'; n.textContent = 'هنوز مشتری پیام نداده است.'; users.appendChild(n); }
-    keys.forEach(k => {
+    if(error){ users.textContent = 'خطا در دریافت گفتگوها: ' + error.message; return; }
+    if(!data.length){ const n = document.createElement('div'); n.className = 'none'; n.textContent = 'هنوز گفتگویی وجود ندارد.'; users.appendChild(n); activeConversationId = null; renderMsgs(); return; }
+    if(!activeConversationId || !data.some(c => c.id === activeConversationId)) activeConversationId = data[0].id;
+    data.forEach(c => {
       const b = document.createElement('button');
-      b.textContent = store.get('users', {})[k] ? store.get('users', {})[k].name : k;
-      if(k === activeChat) b.classList.add('on');
-      b.onclick = () => { activeChat = k; renderChat(); };
+      b.textContent = 'مشتری ' + c.customer_id.slice(0,8) + (c.status === 'closed' ? ' (بسته)' : '');
+      if(c.id === activeConversationId) b.classList.add('on');
+      b.onclick = async () => { activeConversationId = c.id; await renderChat(); };
       users.appendChild(b);
     });
-    if(!activeChat && keys.length) activeChat = keys[0];
+  } else {
+    const { data, error } = await supabaseClient.from('support_conversations').select('id, status').eq('customer_id', session.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+    if(error){ document.getElementById('msgs').textContent = 'خطا در دریافت گفتگو: ' + error.message; return; }
+    if(data) activeConversationId = data.id;
+    else {
+      const created = await supabaseClient.from('support_conversations').insert({ customer_id: session.id, subject: 'پشتیبانی تکنوپا' }).select('id').single();
+      if(created.error){ document.getElementById('msgs').textContent = 'خطا در ساخت گفتگو: ' + created.error.message; return; }
+      activeConversationId = created.data.id;
+    }
   }
-  renderMsgs();
+  await renderMsgs();
+  if(realtimeChannel) await supabaseClient.removeChannel(realtimeChannel);
+  realtimeChannel = supabaseClient.channel('support-chat-' + session.id)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'support_messages' }, async () => { await renderMsgs(); if(isAdmin) await renderChat(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'support_conversations' }, async () => { if(isAdmin) await renderChat(); })
+    .subscribe();
 }
 
-function renderMsgs(){
+async function renderMsgs(){
   const box = document.getElementById('msgs'); box.innerHTML = '';
-  const isAdmin = session.role === 'admin';
-  const key = isAdmin ? activeChat : session.key;
-  const list = key ? (getChats()[key] || []) : [];
-  if(!list.length){
-    const n = document.createElement('div'); n.className = 'empty'; n.style.margin = 'auto';
-    n.textContent = isAdmin ? (key ? 'پیامی نیست.' : 'یک مشتری را از فهرست انتخاب کنید.') : 'سوال خود را بنویسید. مدیر به زودی پاسخ می‌دهد.';
-    box.appendChild(n); return;
-  }
-  list.forEach(m => {
-    const d = document.createElement('div');
-    const mine = (isAdmin && m.from === 'admin') || (!isAdmin && m.from === 'user');
-    d.className = 'bubble ' + (mine ? 'me' : 'other') + (m.from === 'admin' ? ' admin' : '');
-    const who = document.createElement('b');
-    who.textContent = m.from === 'admin' ? 'مدیر' : (isAdmin ? (store.get('users', {})[key]?.name || key) : session.name);
-    const t = document.createElement('span'); t.textContent = m.text;
-    d.append(who, t); box.appendChild(d);
+  if(!session || !activeConversationId){ const n=document.createElement('div'); n.className='empty'; n.textContent='یک گفتگو را انتخاب کنید یا پیام خود را بنویسید.'; box.appendChild(n); return; }
+  const { data, error } = await supabaseClient.from('support_messages').select('id, conversation_id, sender_id, body, created_at').eq('conversation_id', activeConversationId).order('created_at', { ascending: true });
+  if(error){ box.textContent = 'خطا در دریافت پیام‌ها: ' + error.message; return; }
+  if(!data.length){ const n=document.createElement('div'); n.className='empty'; n.style.margin='auto'; n.textContent='سوال خود را بنویسید؛ پشتیبانی پاسخ می‌دهد.'; box.appendChild(n); return; }
+  data.forEach(m => {
+    const d=document.createElement('div'); const mine=m.sender_id===session.id;
+    d.className='bubble '+(mine?'me':'other')+(!mine && session.role==='admin'?' admin':'');
+    const who=document.createElement('b'); who.textContent=mine?(session.role==='admin'?'مدیر':'شما'):(session.role==='admin'?'مشتری':'پشتیبانی');
+    const t=document.createElement('span'); t.textContent=m.body; d.append(who,t); box.appendChild(d);
   });
-  box.scrollTop = box.scrollHeight;
+  box.scrollTop=box.scrollHeight;
 }
 
-function sendMsg(){
-  const input = document.getElementById('c-text');
-  const text = input.value.trim();
-  if(!text || !session) return;
-  const isAdmin = session.role === 'admin';
-  const key = isAdmin ? activeChat : session.key;
-  if(!key) return;
-  const chats = getChats();
-  (chats[key] = chats[key] || []).push({ from: isAdmin ? 'admin' : 'user', text, t: Date.now() });
-  store.set('chats', chats);
-  input.value = '';
-  renderMsgs();
+async function sendMsg(){
+  const input=document.getElementById('c-text'); const body=input.value.trim();
+  if(!body || !session) return;
+  if(body.length>4000){ alert('پیام نباید بیشتر از ۴۰۰۰ نویسه باشد.'); return; }
+  if(!activeConversationId){ await renderChat(); if(!activeConversationId) return; }
+  const result=await supabaseClient.from('support_messages').insert({ conversation_id: activeConversationId, sender_id: session.id, body });
+  if(result.error){ alert('ارسال پیام ناموفق بود: '+result.error.message); return; }
+  input.value=''; await renderMsgs();
 }
 
-// به‌روزرسانی خودکار وقتی در تب دیگر پیامی آمد (فقط برای تست روی یک مرورگر)
-window.addEventListener('storage', () => { if(!document.getElementById('view-chat').classList.contains('hidden') && session) renderChat(); });
+supabaseClient.auth.getSession().then(async ({data}) => {
+  await loadCurrentSession(data.session?.user || null); refreshHeader();
+  if(!document.getElementById('view-chat').classList.contains('hidden')) await renderChat();
+});
+supabaseClient.auth.onAuthStateChange(async (_event, authSession) => {
+  await loadCurrentSession(authSession?.user || null); refreshHeader();
+});
 
 function renderChips(){
   const box = document.getElementById('chips'); box.innerHTML = '';
