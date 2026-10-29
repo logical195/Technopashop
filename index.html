@@ -239,18 +239,14 @@ select{width:100%;padding:10px 12px;border:1px solid #a6a6a6;border-radius:8px;b
     <h2 class="sec-title">پشتیبانی آنلاین</h2>
     <div class="chat-wrap">
       <div class="chat-head"><span>گفتگو با پشتیبانی</span><small id="chat-user"></small></div>
-      <div class="hint">برای استفاده از پشتیبانی آنلاین، با ایمیل و رمز عبور وارد شوید یا ثبت‌نام کنید.</div>
+      <div class="hint">ورود با کد یک‌بارمصرف ایمیلی؛ پیام‌ها در Supabase ذخیره و همگام‌سازی می‌شوند.</div>
 
-      <!-- ورود / ثبت نام مشتری -->
+      <!-- ورود مشتری با کد ایمیلی -->
       <div id="auth" class="auth">
-        <div class="tabs">
-          <button id="tab-login" class="on" onclick="authTab('login')">ورود</button>
-          <button id="tab-reg" onclick="authTab('reg')">ثبت‌نام</button>
-        </div>
-        <div class="field"><label for="a-user">ایمیل</label><input type="email" id="a-user" autocomplete="email"></div>
-        <div class="field"><label for="a-pass">رمز عبور</label><input type="password" id="a-pass" autocomplete="current-password"></div>
-        <button class="btn" id="a-go" onclick="customerAuth()">ورود</button>
-        <div class="msg" id="a-msg"></div>
+        <div class="field"><label for="a-email">ایمیل شما</label><input type="email" id="a-email" autocomplete="email" placeholder="you@example.com"></div>
+        <div class="field hidden" id="a-code-wrap"><label for="a-code">کد یک‌بارمصرف ایمیل</label><input type="text" id="a-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="کد دریافتی را وارد کنید"></div>
+        <button class="btn" id="a-go" onclick="customerAuth()">ارسال کد ورود</button>
+        <div class="msg" id="a-msg" aria-live="polite"></div>
       </div>
 
       <!-- صفحه گفتگو -->
@@ -278,15 +274,15 @@ select{width:100%;padding:10px 12px;border:1px solid #a6a6a6;border-radius:8px;b
   <div class="copy">© تکنوپا. همه حقوق محفوظ است.</div>
 </footer>
 
-<!-- پنجره ورود مدیر -->
+<!-- پنجره ورود مدیر با کد ایمیلی -->
 <div id="admin-modal" class="modal hidden">
   <div class="dialog">
     <h2>ورود مدیر</h2>
-    <div class="field"><label for="m-user">ایمیل مدیر</label><input type="email" id="m-user" autocomplete="email"></div>
-    <div class="field"><label for="m-pass">رمز عبور</label><input type="password" id="m-pass" autocomplete="off" onkeydown="if(event.key==='Enter')adminLogin()"></div>
-    <div class="msg err" id="m-msg"></div>
+    <div class="field"><label for="m-email">ایمیل مدیر</label><input type="email" id="m-email" autocomplete="email" placeholder="ایمیل مدیر را وارد کنید"></div>
+    <div class="field hidden" id="m-code-wrap"><label for="m-code">کد یک‌بارمصرف ایمیل</label><input type="text" id="m-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" onkeydown="if(event.key==='Enter')adminLogin()"></div>
+    <div class="msg err" id="m-msg" aria-live="polite"></div>
     <div class="acts">
-      <button class="btn" onclick="adminLogin()">ورود</button>
+      <button class="btn" id="m-go" onclick="adminLogin()">ارسال کد</button>
       <button class="btn ghost" onclick="closeAdminLogin()">انصراف</button>
     </div>
   </div>
@@ -294,26 +290,25 @@ select{width:100%;padding:10px 12px;border:1px solid #a6a6a6;border-radius:8px;b
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-/* ===== تنظیمات Supabase ===== */
-const SUPABASE_URL = 'https://vlcctdwkwlelcmcydiqv.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_g1Ez8AgK4RR7q9jCpz_eEw_sIkY0-9n';
+/* ===== تنظیمات Supabase =====
+   کلید publishable عمومی است؛ هرگز secret/service_role را اینجا نگذارید. */
+const SUPABASE_URL = 'https://cotvvbxguqvkjmidbptu.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_46SJE1rc5297TyO_qgN4hg_cDW9mVLh';
+const ADMIN_EMAIL = 'logic1950000@gmail.com';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-// لینک‌ها را بعداً اینجا بگذارید:
 const LINKS = { instagram: 'https://www.instagram.com/technopashop?dlrf=OW9mdDFwYjQyYmpr', rubika: 'https://rubika.ir/Technopashop' };
-
-/* ===== ذخیره‌سازی (فعلاً در مرورگر) ===== */
 const store = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ return false; } }
 };
-let session = null; // session authenticated by Supabase
-let activeChat = null; let activeConversationId = null; let realtimeChannel = null; let q = ''; let cat = '';
-const CATS = ['لپ‌تاپ','پردازنده (CPU)','کارت گرافیک','مادربورد','رم (RAM)','هارد و SSD','پاور و کیس','مانیتور','لوازم جانبی','لوازم استوک'];                       // برای مدیر: نام مشتری انتخاب‌شده
-
+let session = null;
+let activeChat = null; let q = ''; let cat = '';
+let authStep = 'email'; let adminAuthStep = 'email'; let pendingAdminEmail = ''; let realtimeChannel = null;
+let currentConversations = [];
+const CATS = ['لپ‌تاپ','پردازنده (CPU)','کارت گرافیک','مادربورد','رم (RAM)','هارد و SSD','پاور و کیس','مانیتور','لوازم جانبی','لوازم استوک'];
 document.getElementById('link-insta').href = LINKS.instagram;
 document.getElementById('link-rubika').href = LINKS.rubika;
 
-/* ===== ناوبری ===== */
 function go(view){
   document.getElementById('view-home').classList.toggle('hidden', view !== 'home');
   document.getElementById('view-chat').classList.toggle('hidden', view !== 'chat');
@@ -321,239 +316,191 @@ function go(view){
   if(view === 'chat') renderChat();
   window.scrollTo(0,0);
 }
-
+function isAdmin(){ return !!session && session.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase(); }
 function refreshHeader(){
-  const isAdmin = session && session.role === 'admin';
-  document.getElementById('who').textContent = session ? (isAdmin ? 'مدیر' : session.name) : '';
+  document.getElementById('who').textContent = session ? (isAdmin() ? 'مدیر' : (session.email || 'مشتری')) : '';
   document.getElementById('btn-logout').classList.toggle('hidden', !session);
   document.getElementById('btn-admin').classList.toggle('hidden', !!session);
-  document.getElementById('admin-panel').classList.toggle('hidden', !isAdmin);
+  document.getElementById('admin-panel').classList.toggle('hidden', !isAdmin());
   document.getElementById('bn-t').textContent = session ? 'خروج' : 'ورود مدیر';
   renderProducts();
 }
-
 async function logout(){
-  await supabaseClient.auth.signOut(); session = null; activeChat = null; activeConversationId = null;
-  if(realtimeChannel) { await supabaseClient.removeChannel(realtimeChannel); realtimeChannel = null; }
+  try { await supabaseClient.auth.signOut(); } catch(e) { console.error(e); }
+  session = null; activeChat = null; currentConversations = [];
+  if(realtimeChannel){ await supabaseClient.removeChannel(realtimeChannel); realtimeChannel = null; }
   refreshHeader(); renderChat();
 }
-
-/* ===== ورود مدیر ===== */
 function openAdminLogin(){
   document.getElementById('m-msg').textContent = '';
-  document.getElementById('m-user').value = '';
-  document.getElementById('m-pass').value = '';
+    document.getElementById('m-email').value = '';
+  document.getElementById('m-code').value = '';
+  document.getElementById('m-code-wrap').classList.add('hidden');
+  document.getElementById('m-go').textContent = 'ارسال کد';
+  adminAuthStep = 'email';
   document.getElementById('admin-modal').classList.remove('hidden');
-  document.getElementById('m-user').focus();
 }
 function closeAdminLogin(){ document.getElementById('admin-modal').classList.add('hidden'); }
 async function adminLogin(){
   const msg = document.getElementById('m-msg');
-  msg.textContent = 'در حال ورود…';
-  const email = document.getElementById('m-user').value.trim();
-  const password = document.getElementById('m-pass').value;
-  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-  if(error){ msg.textContent = 'ورود ناموفق بود؛ ایمیل و رمز را بررسی کنید.'; return; }
-  const { data: admin, error: adminError } = await supabaseClient.from('support_admins').select('user_id').eq('user_id', data.user.id).maybeSingle();
-  if(adminError || !admin){ await supabaseClient.auth.signOut(); msg.textContent = 'این حساب دسترسی مدیر ندارد.'; return; }
-  await loadCurrentSession(data.user); closeAdminLogin(); refreshHeader(); await renderChat();
+  const btn = document.getElementById('m-go');
+  msg.className = 'msg err';
+  btn.disabled = true;
+  try {
+    if(adminAuthStep === 'email'){
+      const enteredEmail = document.getElementById('m-email').value.trim().toLowerCase();
+      if(!enteredEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(enteredEmail)){ msg.textContent = 'یک ایمیل معتبر وارد کنید.'; return; }
+      if(enteredEmail !== ADMIN_EMAIL.toLowerCase()){ msg.textContent = 'این ایمیل برای حساب مدیر مجاز نیست.'; return; }
+      pendingAdminEmail = enteredEmail;
+      const { error } = await supabaseClient.auth.signInWithOtp({ email: pendingAdminEmail, options: { shouldCreateUser: true } });
+      if(error) throw error;
+      adminAuthStep = 'code';
+      document.getElementById('m-code-wrap').classList.remove('hidden');
+      btn.textContent = 'تأیید کد و ورود';
+      msg.className = 'msg ok'; msg.textContent = 'اگر ارسال ایمیل در پروژه فعال باشد، کد ورود به ایمیل مدیر ارسال شد.';
+      document.getElementById('m-code').focus();
+    } else {
+      const token = document.getElementById('m-code').value.trim();
+      if(!/^\d{6,10}$/.test(token)){ msg.textContent = 'کد ایمیل را کامل وارد کنید.'; return; }
+      const { data, error } = await supabaseClient.auth.verifyOtp({ email: pendingAdminEmail || ADMIN_EMAIL, token, type: 'email' });
+      if(error) throw error;
+      if(data.user?.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()){
+        await supabaseClient.auth.signOut(); throw new Error('این حساب، ایمیل مدیر نیست.');
+      }
+      session = { id: data.user.id, email: data.user.email };
+      closeAdminLogin(); await afterLogin();
+    }
+  } catch(e){ msg.className = 'msg err'; msg.textContent = friendlyError(e); }
+  finally { btn.disabled = false; }
+}
+function friendlyError(e){
+  const m = String(e?.message || 'خطای نامشخص');
+  if(/rate limit|too many requests|over_email_send_rate_limit/i.test(m)) return 'درخواست ایمیل زیاد بوده؛ کمی صبر کنید و دوباره تلاش کنید.';
+  if(/email address not authorized/i.test(m)) return 'ارسال‌گر پیش‌فرض Supabase فقط به ایمیل‌های مجاز تیم پروژه ایمیل می‌فرستد. برای ارسال به همه مشتری‌ها باید SMTP اختصاصی تنظیم شود.';
+  return 'خطا: ' + m;
 }
 
-/* ===== محصولات ===== */
+/* ===== محصولات: فعلاً در همین مرورگر ذخیره می‌شوند ===== */
 function searchInput(v){ q = v; if(document.getElementById('view-home').classList.contains('hidden')) go('home'); renderProducts(); if(q.trim()) document.getElementById('products').scrollIntoView({behavior:'smooth'}); }
 function getProducts(){ return store.get('products', []); }
-
 function renderProducts(){
-  const box = document.getElementById('products');
+  const box = document.getElementById('products'); if(!box) return;
   const all = getProducts(); const qq = q.trim().toLowerCase(); const list = all.filter(p => (!cat || p.cat === cat) && (!qq || (p.name+' '+p.caption).toLowerCase().includes(qq)));
-  const isAdmin = session && session.role === 'admin';
-  box.innerHTML = '';
-  if(!list.length){
-    box.className = '';
-    const e = document.createElement('div');
-    e.className = 'empty';
-    e.textContent = all.length && !list.length ? 'محصولی با این جستجو پیدا نشد.' : isAdmin ? 'هنوز محصولی ثبت نشده. از فرم بالا اولین محصول را اضافه کنید.' : 'به زودی محصولات جدید اضافه می‌شود.';
-    box.appendChild(e);
-    return;
-  }
+  const admin = isAdmin(); box.innerHTML = '';
+  if(!list.length){ box.className = ''; const e = document.createElement('div'); e.className = 'empty'; e.textContent = all.length ? 'محصولی با این جستجو پیدا نشد.' : admin ? 'هنوز محصولی ثبت نشده. از فرم بالا اولین محصول را اضافه کنید.' : 'به زودی محصولات جدید اضافه می‌شود.'; box.appendChild(e); return; }
   box.className = 'grid';
   list.slice().reverse().forEach(p => {
     const c = document.createElement('article'); c.className = 'card' + (p.cat && p.cat.includes('استوک') ? ' stock' : '');
     const img = document.createElement('img'); img.src = p.img; img.alt = p.name;
-    const b = document.createElement('div'); b.className = 'body';
-    const h = document.createElement('h3'); h.textContent = p.name;
-    const t = document.createElement('p'); t.textContent = p.caption;
-    if(p.cat){ const k = document.createElement('small'); k.className = 'kat'; k.textContent = p.cat; b.appendChild(k); }
-    b.append(h, t);
+    const b = document.createElement('div'); b.className = 'body'; const h = document.createElement('h3'); h.textContent = p.name; const t = document.createElement('p'); t.textContent = p.caption;
+    if(p.cat){ const k = document.createElement('small'); k.className = 'kat'; k.textContent = p.cat; b.appendChild(k); } b.append(h,t);
     const ask = document.createElement('button'); ask.className = 'ask'; ask.textContent = 'پرسش درباره این محصول'; ask.onclick = () => go('chat'); b.appendChild(ask);
-    if(isAdmin){
-      const d = document.createElement('button'); d.className = 'del'; d.textContent = 'حذف';
-      d.onclick = () => { if(confirm('این محصول حذف شود؟')){ store.set('products', getProducts().filter(x => x.id !== p.id)); renderProducts(); } };
-      b.appendChild(d);
-    }
-    c.append(img, b);
-    box.appendChild(c);
+    if(admin){ const d = document.createElement('button'); d.className = 'del'; d.textContent = 'حذف'; d.onclick = () => { if(confirm('این محصول حذف شود؟')){ store.set('products', getProducts().filter(x => x.id !== p.id)); renderProducts(); } }; b.appendChild(d); }
+    c.append(img,b); box.appendChild(c);
   });
 }
-
 let pendingImg = null;
 document.getElementById('p-img').addEventListener('change', e => {
-  const f = e.target.files[0]; const pv = document.getElementById('preview');
+  const f = e.target.files[0], pv = document.getElementById('preview');
   if(!f){ pendingImg = null; pv.classList.add('hidden'); return; }
-  const reader = new FileReader();
-  reader.onload = () => {
-    const im = new Image();
-    im.onload = () => {            // کوچک‌کردن عکس تا حافظه مرورگر پر نشود
-      const max = 800, s = Math.min(1, max / Math.max(im.width, im.height));
-      const cv = document.createElement('canvas');
-      cv.width = Math.round(im.width * s); cv.height = Math.round(im.height * s);
-      cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
-      pendingImg = cv.toDataURL('image/jpeg', 0.82);
-      pv.src = pendingImg; pv.classList.remove('hidden');
-    };
-    im.src = reader.result;
-  };
-  reader.readAsDataURL(f);
+  const reader = new FileReader(); reader.onload = () => { const im = new Image(); im.onload = () => { const max=800, s=Math.min(1,max/Math.max(im.width,im.height)); const cv=document.createElement('canvas'); cv.width=Math.round(im.width*s); cv.height=Math.round(im.height*s); cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height); pendingImg=cv.toDataURL('image/jpeg',0.82); pv.src=pendingImg; pv.classList.remove('hidden'); }; im.src=reader.result; }; reader.readAsDataURL(f);
 });
-
 function addProduct(){
-  const msg = document.getElementById('p-msg');
-  const name = document.getElementById('p-name').value.trim();
-  const caption = document.getElementById('p-cap').value.trim();
-  msg.className = 'msg err';
-  if(!name){ msg.textContent = 'نام محصول را بنویسید.'; return; }
-  if(!pendingImg){ msg.textContent = 'یک عکس برای محصول انتخاب کنید.'; return; }
-  const list = getProducts();
-  list.push({ id: Date.now(), name, caption, img: pendingImg, cat: document.getElementById('p-cat').value });
-  if(!store.set('products', list)){ msg.textContent = 'حافظه مرورگر پر است. چند محصول قدیمی را حذف کنید.'; return; }
-  document.getElementById('p-name').value = ''; document.getElementById('p-cap').value = '';
-  document.getElementById('p-img').value = ''; document.getElementById('preview').classList.add('hidden');
-  pendingImg = null;
-  msg.className = 'msg ok'; msg.textContent = 'محصول ثبت شد.';
-  renderProducts();
+  const msg=document.getElementById('p-msg'), name=document.getElementById('p-name').value.trim(), caption=document.getElementById('p-cap').value.trim(); msg.className='msg err';
+  if(!isAdmin()){ msg.textContent='فقط مدیر می‌تواند محصول اضافه کند.'; return; }
+  if(!name){ msg.textContent='نام محصول را بنویسید.'; return; } if(!pendingImg){ msg.textContent='یک عکس برای محصول انتخاب کنید.'; return; }
+  const list=getProducts(); list.push({id:Date.now(),name,caption,img:pendingImg,cat:document.getElementById('p-cat').value});
+  if(!store.set('products',list)){msg.textContent='حافظه مرورگر پر است. چند محصول قدیمی را حذف کنید.';return;}
+  document.getElementById('p-name').value=''; document.getElementById('p-cap').value=''; document.getElementById('p-img').value=''; document.getElementById('preview').classList.add('hidden'); pendingImg=null;
+  msg.className='msg ok'; msg.textContent='محصول در همین مرورگر ثبت شد؛ هنوز در دیتابیس مشترک محصولات ذخیره نمی‌شود.'; renderProducts();
 }
 
-/* ===== ورود / ثبت‌نام و چت آنلاین با Supabase ===== */
-let authMode = 'login';
-function authTab(m){
-  authMode = m;
-  document.getElementById('tab-login').classList.toggle('on', m === 'login');
-  document.getElementById('tab-reg').classList.toggle('on', m === 'reg');
-  document.getElementById('a-go').textContent = m === 'login' ? 'ورود' : 'ثبت‌نام';
-  document.getElementById('a-msg').textContent = '';
-}
-
-async function loadCurrentSession(user){
-  if(!user){ session = null; return; }
-  const { data: admin } = await supabaseClient.from('support_admins').select('user_id').eq('user_id', user.id).maybeSingle();
-  session = { id: user.id, email: user.email, name: user.user_metadata?.name || user.email, role: admin ? 'admin' : 'user' };
-}
-
+/* ===== ورود مشتری با OTP ایمیل ===== */
 async function customerAuth(){
-  const msg = document.getElementById('a-msg'); msg.className = 'msg err';
-  const email = document.getElementById('a-user').value.trim();
-  const password = document.getElementById('a-pass').value;
-  if(!/^\S+@\S+\.\S+$/.test(email)){ msg.textContent = 'ایمیل معتبر وارد کنید.'; return; }
-  if(password.length < 6){ msg.textContent = 'رمز عبور باید حداقل ۶ کاراکتر باشد.'; return; }
-  msg.textContent = 'در حال اتصال…';
-  let result;
-  if(authMode === 'reg') result = await supabaseClient.auth.signUp({ email, password, options: { data: { name: email.split('@')[0] } } });
-  else result = await supabaseClient.auth.signInWithPassword({ email, password });
-  if(result.error){ msg.textContent = result.error.message.includes('Invalid login') ? 'ایمیل یا رمز عبور اشتباه است.' : 'خطا: ' + result.error.message; return; }
-  if(authMode === 'reg' && !result.data.session){ msg.className = 'msg ok'; msg.textContent = 'ثبت‌نام انجام شد. ایمیل را برای تأیید حساب بررسی کنید؛ اگر ایمیل تأیید فعال است.'; return; }
-  await loadCurrentSession(result.data.user);
-  document.getElementById('a-user').value = ''; document.getElementById('a-pass').value = ''; msg.textContent = '';
-  refreshHeader(); await renderChat();
-}
-
-async function renderChat(){
-  const auth = document.getElementById('auth');
-  const body = document.getElementById('chat-body');
-  const users = document.getElementById('users');
-  const isAdmin = session && session.role === 'admin';
-  auth.classList.toggle('hidden', !!session);
-  body.classList.toggle('hidden', !session);
-  document.getElementById('chat-user').textContent = session ? (isAdmin ? 'مدیر' : session.name) : '';
-  if(!session) return;
-  users.classList.toggle('hidden', !isAdmin);
-  body.classList.toggle('single', !isAdmin);
-  if(isAdmin){
-    const { data, error } = await supabaseClient.from('support_conversations').select('id, customer_id, subject, status, created_at').order('created_at', { ascending: false });
-    users.innerHTML = '';
-    if(error){ users.textContent = 'خطا در دریافت گفتگوها: ' + error.message; return; }
-    if(!data.length){ const n = document.createElement('div'); n.className = 'none'; n.textContent = 'هنوز گفتگویی وجود ندارد.'; users.appendChild(n); activeConversationId = null; renderMsgs(); return; }
-    if(!activeConversationId || !data.some(c => c.id === activeConversationId)) activeConversationId = data[0].id;
-    data.forEach(c => {
-      const b = document.createElement('button');
-      b.textContent = 'مشتری ' + c.customer_id.slice(0,8) + (c.status === 'closed' ? ' (بسته)' : '');
-      if(c.id === activeConversationId) b.classList.add('on');
-      b.onclick = async () => { activeConversationId = c.id; await renderChat(); };
-      users.appendChild(b);
-    });
-  } else {
-    const { data, error } = await supabaseClient.from('support_conversations').select('id, status').eq('customer_id', session.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-    if(error){ document.getElementById('msgs').textContent = 'خطا در دریافت گفتگو: ' + error.message; return; }
-    if(data) activeConversationId = data.id;
-    else {
-      const created = await supabaseClient.from('support_conversations').insert({ customer_id: session.id, subject: 'پشتیبانی تکنوپا' }).select('id').single();
-      if(created.error){ document.getElementById('msgs').textContent = 'خطا در ساخت گفتگو: ' + created.error.message; return; }
-      activeConversationId = created.data.id;
+  const msg=document.getElementById('a-msg'), btn=document.getElementById('a-go'), email=document.getElementById('a-email').value.trim().toLowerCase();
+  msg.className='msg err'; btn.disabled=true;
+  try {
+    if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ msg.textContent='یک ایمیل معتبر وارد کنید.'; return; }
+    if(authStep==='email'){
+      const {error}=await supabaseClient.auth.signInWithOtp({email,options:{shouldCreateUser:true}}); if(error) throw error;
+      authStep='code'; document.getElementById('a-code-wrap').classList.remove('hidden'); btn.textContent='تأیید کد و ورود'; msg.className='msg ok'; msg.textContent='اگر ارسال ایمیل فعال باشد، کد ورود ارسال شد. پوشه هرزنامه را هم بررسی کنید.'; document.getElementById('a-code').focus();
+    } else {
+      const token=document.getElementById('a-code').value.trim(); if(!/^\d{6,10}$/.test(token)){msg.textContent='کد ایمیل را کامل وارد کنید.';return;}
+      const {data,error}=await supabaseClient.auth.verifyOtp({email,token,type:'email'}); if(error) throw error;
+      if(data.user?.email?.toLowerCase()===ADMIN_EMAIL.toLowerCase()){ session={id:data.user.id,email:data.user.email}; }
+      else { session={id:data.user.id,email:data.user.email}; }
+      authStep='email'; document.getElementById('a-code').value=''; document.getElementById('a-code-wrap').classList.add('hidden'); btn.textContent='ارسال کد ورود'; await afterLogin();
     }
-  }
-  await renderMsgs();
-  if(realtimeChannel) await supabaseClient.removeChannel(realtimeChannel);
-  realtimeChannel = supabaseClient.channel('support-chat-' + session.id)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'support_messages' }, async () => { await renderMsgs(); if(isAdmin) await renderChat(); })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'support_conversations' }, async () => { if(isAdmin) await renderChat(); })
-    .subscribe();
+  } catch(e){ msg.className='msg err'; msg.textContent=friendlyError(e); }
+  finally{btn.disabled=false;}
 }
-
+async function afterLogin(){
+  document.getElementById('a-msg').textContent='';
+  refreshHeader();
+  if(realtimeChannel){ await supabaseClient.removeChannel(realtimeChannel); realtimeChannel=null; }
+  realtimeChannel=supabaseClient.channel('chat-live-'+session.id).on('postgres_changes',{event:'*',schema:'public',table:'messages'},()=>{ if(session) renderChat(); }).on('postgres_changes',{event:'*',schema:'public',table:'conversations'},()=>{ if(session && isAdmin()) renderChat(); }).subscribe();
+  await renderChat();
+}
+async function ensureCustomerConversation(){
+  if(!session || isAdmin()) return null;
+  const {data,error}=await supabaseClient.from('conversations').select('id,customer_id,customer_email,created_at').eq('customer_id',session.id).order('created_at',{ascending:true}).limit(1);
+  if(error) throw error;
+  if(data && data.length) return data[0];
+  const {data:created,error:insertError}=await supabaseClient.from('conversations').insert({customer_id:session.id,customer_email:session.email}).select('id,customer_id,customer_email,created_at').single();
+  if(insertError) throw insertError; return created;
+}
+async function renderChat(){
+  const auth=document.getElementById('auth'), body=document.getElementById('chat-body'), users=document.getElementById('users');
+  auth.classList.toggle('hidden',!!session); body.classList.toggle('hidden',!session);
+  document.getElementById('chat-user').textContent=session?(isAdmin()?'مدیر':session.email):'';
+  if(!session){ users.classList.add('hidden'); return; }
+  users.classList.toggle('hidden',!isAdmin()); body.classList.toggle('single',!isAdmin());
+  try {
+    if(isAdmin()){
+      const {data,error}=await supabaseClient.from('conversations').select('id,customer_id,customer_email,created_at').order('created_at',{ascending:false}); if(error) throw error;
+      currentConversations=data||[]; users.innerHTML='';
+      if(!currentConversations.length){const n=document.createElement('div');n.className='none';n.textContent='هنوز مشتری پیامی نداده است.';users.appendChild(n);activeChat=null;}
+      currentConversations.forEach(c=>{const b=document.createElement('button');b.textContent=c.customer_email||c.customer_id;if(c.id===activeChat)b.classList.add('on');b.onclick=()=>{activeChat=c.id;renderChat();};users.appendChild(b);});
+      if(!activeChat && currentConversations.length) activeChat=currentConversations[0].id;
+    } else {
+      const c=await ensureCustomerConversation(); activeChat=c?.id||null;
+    }
+    await renderMsgs();
+  } catch(e){ const box=document.getElementById('msgs'); box.innerHTML=''; const n=document.createElement('div');n.className='empty';n.textContent='خطای دریافت چت: '+friendlyError(e);box.appendChild(n); }
+}
 async function renderMsgs(){
-  const box = document.getElementById('msgs'); box.innerHTML = '';
-  if(!session || !activeConversationId){ const n=document.createElement('div'); n.className='empty'; n.textContent='یک گفتگو را انتخاب کنید یا پیام خود را بنویسید.'; box.appendChild(n); return; }
-  const { data, error } = await supabaseClient.from('support_messages').select('id, conversation_id, sender_id, body, created_at').eq('conversation_id', activeConversationId).order('created_at', { ascending: true });
-  if(error){ box.textContent = 'خطا در دریافت پیام‌ها: ' + error.message; return; }
-  if(!data.length){ const n=document.createElement('div'); n.className='empty'; n.style.margin='auto'; n.textContent='سوال خود را بنویسید؛ پشتیبانی پاسخ می‌دهد.'; box.appendChild(n); return; }
-  data.forEach(m => {
-    const d=document.createElement('div'); const mine=m.sender_id===session.id;
-    d.className='bubble '+(mine?'me':'other')+(!mine && session.role==='admin'?' admin':'');
-    const who=document.createElement('b'); who.textContent=mine?(session.role==='admin'?'مدیر':'شما'):(session.role==='admin'?'مشتری':'پشتیبانی');
-    const t=document.createElement('span'); t.textContent=m.body; d.append(who,t); box.appendChild(d);
-  });
+  const box=document.getElementById('msgs'); box.innerHTML='';
+  if(!session) return;
+  if(!activeChat){const n=document.createElement('div');n.className='empty';n.style.margin='auto';n.textContent='یک مشتری را از فهرست انتخاب کنید.';box.appendChild(n);return;}
+  const {data,error}=await supabaseClient.from('messages').select('id,conversation_id,sender_id,body,created_at').eq('conversation_id',activeChat).order('created_at',{ascending:true});
+  if(error) throw error;
+  if(!data || !data.length){const n=document.createElement('div');n.className='empty';n.style.margin='auto';n.textContent=isAdmin()?'پیامی نیست.':'سوال خود را بنویسید. مدیر به زودی پاسخ می‌دهد.';box.appendChild(n);return;}
+  data.forEach(m=>{const d=document.createElement('div');const mine=m.sender_id===session.id;d.className='bubble '+(mine?'me':'other')+((m.sender_id===session.id&&isAdmin())?' admin':'');const who=document.createElement('b');who.textContent=mine?(isAdmin()?'مدیر':'شما'):(isAdmin()?(currentConversations.find(c=>c.id===activeChat)?.customer_email||'مشتری'):'مدیر');const t=document.createElement('span');t.textContent=m.body;d.append(who,t);box.appendChild(d);});
   box.scrollTop=box.scrollHeight;
 }
-
 async function sendMsg(){
-  const input=document.getElementById('c-text'); const body=input.value.trim();
-  if(!body || !session) return;
-  if(body.length>4000){ alert('پیام نباید بیشتر از ۴۰۰۰ نویسه باشد.'); return; }
-  if(!activeConversationId){ await renderChat(); if(!activeConversationId) return; }
-  const result=await supabaseClient.from('support_messages').insert({ conversation_id: activeConversationId, sender_id: session.id, body });
-  if(result.error){ alert('ارسال پیام ناموفق بود: '+result.error.message); return; }
-  input.value=''; await renderMsgs();
+  const input=document.getElementById('c-text'), body=input.value.trim(); if(!body||!session||!activeChat)return;
+  const btn=input.parentElement.querySelector('button'); if(btn)btn.disabled=true;
+  try{const {error}=await supabaseClient.from('messages').insert({conversation_id:activeChat,sender_id:session.id,body});if(error)throw error;input.value='';await renderMsgs();}
+  catch(e){alert('پیام ارسال نشد: '+friendlyError(e));}
+  finally{if(btn)btn.disabled=false;}
 }
-
-supabaseClient.auth.getSession().then(async ({data}) => {
-  await loadCurrentSession(data.session?.user || null); refreshHeader();
-  if(!document.getElementById('view-chat').classList.contains('hidden')) await renderChat();
-});
-supabaseClient.auth.onAuthStateChange(async (_event, authSession) => {
-  await loadCurrentSession(authSession?.user || null); refreshHeader();
-});
-
 function renderChips(){
-  const box = document.getElementById('chips'); box.innerHTML = '';
-  ['همه', ...CATS].forEach(c => {
-    const b = document.createElement('button'); b.textContent = c;
-    if((c === 'همه' && !cat) || c === cat) b.classList.add('on');
-    b.onclick = () => { cat = c === 'همه' ? '' : c; renderChips(); renderProducts(); };
-    box.appendChild(b);
-  });
-  const sel = document.getElementById('p-cat');
-  if(!sel.options.length) CATS.forEach(c => sel.add(new Option(c, c)));
+  const box=document.getElementById('chips');box.innerHTML='';
+  ['همه',...CATS].forEach(c=>{const b=document.createElement('button');b.textContent=c;if((c==='همه'&&!cat)||c===cat)b.classList.add('on');b.onclick=()=>{cat=c==='همه'?'':c;renderChips();renderProducts();};box.appendChild(b);});
+  const sel=document.getElementById('p-cat');if(!sel.options.length)CATS.forEach(c=>sel.add(new Option(c,c)));
 }
 renderChips();
 refreshHeader();
+supabaseClient.auth.getSession().then(async ({data})=>{
+  const u=data?.session?.user;
+  if(u){session={id:u.id,email:u.email};await afterLogin();} else {renderChat();}
+}).catch(console.error);
+supabaseClient.auth.onAuthStateChange((_event, authSession)=>{
+  const u=authSession?.user;
+  if(u && (!session || session.id!==u.id)){session={id:u.id,email:u.email};setTimeout(()=>afterLogin(),0);}
+  if(!u && session){session=null;activeChat=null;refreshHeader();renderChat();}
+});
 </script>
 </body>
 </html>
