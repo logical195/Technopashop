@@ -103,6 +103,11 @@ input:focus,textarea:focus{border-color:#e77600;box-shadow:0 0 0 3px #c8f3fa;out
 .users{border-left:1px solid var(--line);overflow:auto;max-height:520px;background:#f7f8f8}
 .users button{display:block;width:100%;text-align:right;background:none;border:0;border-bottom:1px solid var(--line);padding:12px 16px;cursor:pointer}
 .users button:hover{background:#edeff0}.users button.on{background:#fff;font-weight:700;border-right:4px solid #e77600}
+.user-item{display:flex;align-items:stretch;border-bottom:1px solid var(--line);background:#f7f8f8}
+.users .user-item .user-select{display:block;flex:1 1 auto;width:auto;min-width:0;text-align:right;background:none;border:0;padding:10px 12px;cursor:pointer;overflow-wrap:anywhere}
+.users .user-item .user-select.on{background:#fff;font-weight:700;border-right:4px solid #e77600}
+.users .user-item .user-delete{display:inline-flex;align-items:center;justify-content:center;flex:0 0 42px;width:42px;min-width:42px;max-width:42px;height:34px;align-self:center;margin:0 6px;border:1px solid #e6b7a9;border-radius:7px;background:#fff;color:var(--bad);padding:0 4px;cursor:pointer;font-size:.72rem;line-height:1}
+.users .user-item .user-delete:hover{background:#b12704;color:#fff}
 .users .none{padding:16px;color:var(--soft);font-size:.9rem}
 .conv{display:flex;flex-direction:column;min-height:440px}
 .msgs{flex:1;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:10px;max-height:420px;min-height:300px}
@@ -128,8 +133,8 @@ footer{background:var(--nav2);color:#fff;margin-top:20px}
 footer h4{margin-bottom:8px;font-size:1.05rem}
 footer p,footer li{color:#ccc;font-size:.9rem}
 footer ul{list-style:none}footer li a{text-decoration:none}footer li a:hover{text-decoration:underline;color:#fff}
-.soc{display:flex;gap:10px;flex-wrap:wrap}
-.soc a{text-decoration:none;font-weight:700;color:#fff;border:1px solid #888;padding:4px 20px;border-radius:99px}
+.soc{display:flex;gap:10px;flex-wrap:nowrap;align-items:center}
+.soc a{text-decoration:none;font-weight:700;color:#fff;border:1px solid #888;padding:4px 12px;border-radius:99px;white-space:nowrap;flex:0 1 auto;text-align:center}
 .soc a:hover{border-color:var(--acc);color:var(--acc)}
 .copy{background:var(--nav);text-align:center;padding:14px;font-size:.82rem;color:#aaa}
 
@@ -150,6 +155,8 @@ footer ul{list-style:none}footer li a{text-decoration:none}footer li a:hover{tex
   .card .body{padding:8px 10px}.card h3{font-size:.9rem}.card p{font-size:.78rem;-webkit-line-clamp:2}
   .bubble{max-width:90%}.sec-title{font-size:1.2rem}
   footer{padding-bottom:64px}
+  .soc{gap:7px;flex-wrap:nowrap;width:100%}
+  .soc a{padding:4px 9px;font-size:clamp(.68rem,2.8vw,.86rem);letter-spacing:0;min-width:0}
   .bottom{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:40;background:#fff;border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px))}
   .bottom button{flex:1;background:none;border:0;display:flex;flex-direction:column;align-items:center;font-size:.74rem;color:var(--soft);padding:2px;cursor:pointer;line-height:1.5}
   .bottom button.on{color:#c45500;font-weight:700}
@@ -273,7 +280,7 @@ select{width:100%;padding:10px 12px;border:1px solid #a6a6a6;border-radius:8px;b
   <div class="wrap fcols">
     <div><h4>تکنوپا</h4><p>تکنوپا؛ فروش لپ‌تاپ، قطعات سیستم و لوازم کامپیوتر. برای مشاوره و سفارش با پشتیبانی آنلاین در ارتباط باشید.</p></div>
     <div><h4>دسترسی سریع</h4><ul><li><a href="#" onclick="go('home');return false">محصولات</a></li><li><a href="#" onclick="go('chat');return false">پشتیبانی آنلاین</a></li></ul></div>
-    <div><h4>با ما در ارتباط باشید</h4><div class="soc"><a href="#" id="link-insta" target="_blank" rel="noopener">اینستاگرام</a><a href="#" id="link-rubika" target="_blank" rel="noopener">روبیکا</a></div></div>
+    <div><h4>با ما در ارتباط باشید</h4><div class="soc"><a href="#" id="link-insta" target="_blank" rel="noopener">اینستاگرام</a><a href="#" id="link-rubika" target="_blank" rel="noopener">روبیکا</a><a href="#" id="link-telegram" target="_blank" rel="noopener">تلگرام</a></div></div>
   </div>
   <div class="copy">© تکنوپا. همه حقوق محفوظ است.</div>
 </footer>
@@ -299,7 +306,7 @@ const ADMIN_PASS = '*******';
 const SB_URL = 'https://ydcgrohkjliebkjyvtdo.supabase.co';
 const SB_KEY = 'sb_publishable_eE1oIIP7uuytWCTEVi5z1A_r2tMWvuP';
 // لینک‌ها را بعداً اینجا بگذارید:
-const LINKS = { instagram: 'https://www.instagram.com/technopashop?dlrf=OW9mdDFwYjQyYmpr', rubika: 'https://rubika.ir/Technopashop' };
+const LINKS = { instagram: 'https://www.instagram.com/technopashop?dlrf=OW9mdDFwYjQyYmpr', rubika: 'https://rubika.ir/Technopashop', telegram: 'https://t.me/Technopashop' };
 
 /* ===== ذخیره‌سازی (فعلاً در مرورگر) ===== */
 const store = {
@@ -312,6 +319,7 @@ const CATS = ['لپ‌تاپ','پردازنده (CPU)','کارت گرافیک','
 
 document.getElementById('link-insta').href = LINKS.instagram;
 document.getElementById('link-rubika').href = LINKS.rubika;
+document.getElementById('link-telegram').href = LINKS.telegram;
 
 /* ===== ناوبری ===== */
 function go(view){
@@ -360,7 +368,16 @@ function adminLogin(){
 
 /* ===== محصولات ===== */
 function searchInput(v){ q = v; if(document.getElementById('view-home').classList.contains('hidden')) go('home'); renderProducts(); if(q.trim()) document.getElementById('products').scrollIntoView({behavior:'smooth'}); }
-function getProducts(){ return store.get('products', []); }
+let productsCache = [];
+function getProducts(){ return productsCache; }
+
+async function fetchProducts(){
+  try{
+    const rows = await sb('products?select=*&order=created_at.desc');
+    productsCache = Array.isArray(rows) ? rows : [];
+  }catch(e){ console.error('دریافت محصولات ناموفق بود:', e); }
+  renderProducts();
+}
 
 function renderProducts(){
   const box = document.getElementById('products');
@@ -387,7 +404,15 @@ function renderProducts(){
     const ask = document.createElement('button'); ask.className = 'ask'; ask.textContent = 'پرسش درباره این محصول'; ask.onclick = () => go('chat'); b.appendChild(ask);
     if(isAdmin){
       const d = document.createElement('button'); d.className = 'del'; d.textContent = 'حذف';
-      d.onclick = () => { if(confirm('این محصول حذف شود؟')){ store.set('products', getProducts().filter(x => x.id !== p.id)); renderProducts(); } };
+      d.onclick = async () => {
+        if(!confirm('این محصول حذف شود؟')) return;
+        d.disabled = true;
+        try{
+          await sb('products?id=eq.' + encodeURIComponent(p.id), { method: 'DELETE' });
+          productsCache = productsCache.filter(x => String(x.id) !== String(p.id));
+          renderProducts();
+        }catch(e){ alert('حذف محصول انجام نشد. دسترسی جدول را بررسی کنید.'); d.disabled = false; }
+      };
       b.appendChild(d);
     }
     c.append(img, b);
@@ -415,28 +440,40 @@ document.getElementById('p-img').addEventListener('change', e => {
   reader.readAsDataURL(f);
 });
 
-function addProduct(){
+async function addProduct(){
   const msg = document.getElementById('p-msg');
   const name = document.getElementById('p-name').value.trim();
   const caption = document.getElementById('p-cap').value.trim();
   msg.className = 'msg err';
   if(!name){ msg.textContent = 'نام محصول را بنویسید.'; return; }
   if(!pendingImg){ msg.textContent = 'یک عکس برای محصول انتخاب کنید.'; return; }
-  const list = getProducts();
-  list.push({ id: Date.now(), name, caption, img: pendingImg, cat: document.getElementById('p-cat').value });
-  if(!store.set('products', list)){ msg.textContent = 'حافظه مرورگر پر است. چند محصول قدیمی را حذف کنید.'; return; }
-  document.getElementById('p-name').value = ''; document.getElementById('p-cap').value = '';
-  document.getElementById('p-img').value = ''; document.getElementById('preview').classList.add('hidden');
-  pendingImg = null;
-  msg.className = 'msg ok'; msg.textContent = 'محصول ثبت شد.';
-  renderProducts();
+  const btn = document.querySelector('#admin-panel .btn.gold');
+  btn.disabled = true;
+  try{
+    const rows = await sb('products', {
+      method: 'POST',
+      body: { name, caption, img: pendingImg, cat: document.getElementById('p-cat').value }
+    });
+    if(Array.isArray(rows) && rows.length) productsCache.unshift(rows[0]);
+    else await fetchProducts();
+    document.getElementById('p-name').value = '';
+    document.getElementById('p-cap').value = '';
+    document.getElementById('p-img').value = '';
+    document.getElementById('preview').classList.add('hidden');
+    pendingImg = null;
+    msg.className = 'msg ok'; msg.textContent = 'محصول ثبت شد و برای همه نمایش داده می‌شود.';
+    renderProducts();
+  }catch(e){
+    console.error(e);
+    msg.textContent = 'ثبت محصول انجام نشد. کد SQL و دسترسی جدول را بررسی کنید.';
+  }finally{ btn.disabled = false; }
 }
 
 /* ===== Supabase ===== */
 async function sb(path, opt = {}){
   const r = await fetch(SB_URL + '/rest/v1/' + path, {
     method: opt.method || 'GET',
-    headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' },
+    headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', Prefer: opt.method === 'POST' ? 'return=representation' : 'return=minimal' },
     body: opt.body ? JSON.stringify(opt.body) : undefined
   });
   if(!r.ok) throw new Error('HTTP ' + r.status);
@@ -517,11 +554,26 @@ function renderChat(fromPoll){
     if(!keys.length){ const n = document.createElement('div'); n.className = 'none'; n.textContent = 'هنوز مشتری پیام نداده است.'; users.appendChild(n); }
     if(!activeChat && keys.length) activeChat = keys[0];
     keys.forEach(k => {
-      const b = document.createElement('button');
+      const item = document.createElement('div'); item.className = 'user-item';
+      const b = document.createElement('button'); b.className = 'user-select';
       b.textContent = names[k];
       if(k === activeChat) b.classList.add('on');
       b.onclick = () => { activeChat = k; renderChat(); };
-      users.appendChild(b);
+      const del = document.createElement('button'); del.className = 'user-delete';
+      del.textContent = 'حذف'; del.title = 'حذف تمام پیام‌های این مخاطب';
+      del.onclick = async (ev) => {
+        ev.stopPropagation();
+        if(!confirm('تمام پیام‌های این مخاطب حذف شود؟ این کار قابل بازگشت نیست.')) return;
+        del.disabled = true;
+        try{
+          await sb('rpc/delete_conversation', { method: 'POST', body: { p_user_key: k } });
+          allMsgs = allMsgs.filter(m => m.user_key !== k);
+          if(activeChat === k) activeChat = null;
+          renderChat();
+          await fetchMsgs();
+        }catch(e){ alert('حذف گفتگو انجام نشد. کد SQL و دسترسی تابع را بررسی کنید.'); del.disabled = false; }
+      };
+      item.append(b, del); users.appendChild(item);
     });
   }
   renderMsgs();
@@ -581,6 +633,7 @@ function renderChips(){
 }
 renderChips();
 refreshHeader();
+fetchProducts();
 </script>
 </body>
 </html>
